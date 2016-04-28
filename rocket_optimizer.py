@@ -14,7 +14,7 @@ from copy import copy
 ACCELERATION_GRAVITY = 9.81
 
 parser = argparse.ArgumentParser(description='Help for finding the most efficient way to get delta-V!')
-parser.add_argument('payload_mass', metavar='M', type=float,
+parser.add_argument('payload_mass', metavar='Mass', type=float,
                    help='Mass in tonnes of payload that these stages will deliver.')
 
 parser.add_argument('--steerable1st', dest='steerable1st', action='store_true')
