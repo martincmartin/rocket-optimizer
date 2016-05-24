@@ -22,7 +22,7 @@ parser.add_argument('--no-steerable1st', dest='steerable1st', action='store_fals
 parser.set_defaults(steerable1st=False)
 
 parser.add_argument('--delta-v-of-atmosphere', dest='delta_v_of_atmosphere', type=float,
-                    help='All stages that start below this delta_v will use atmosphere Isp.  Other will use vaccum.', default=1000)
+                    help='All stages that start below this delta_v will use atmosphere Isp.  Other will use vaccum.', default=1500)
 
 parser.add_argument('--filter', dest='filter', action='store_true')
 parser.add_argument('--no-filter', dest='filter', action='store_false')
@@ -290,8 +290,8 @@ swivels_srbs = [Liquid(Swivel, fuel, [Thumper_radial, Thumper_radial]) for fuel 
 
 radial_srbs = [ThumperR * 2]
 
-#terriers = [Liquid(Terrier, 1600)]
-#swivels = [Liquid(Swivel, 1600)]
+#terriers = [Liquid(Terrier, 1200)]
+#swivels = [Liquid(Swivel, 100)]
 #swivels_srbs = [Liquid(Swivel, 1600, [Thumper_radial, Thumper_radial])]
 
 # Swivel is never chosen for the middle of three stages.
