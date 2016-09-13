@@ -286,7 +286,7 @@ ThumperR = Thumper_radial + RadialDecoupler
 
 terriers = [Liquid(Terrier, fuel) for fuel in range(100, 3201, 100)]
 swivels = [Liquid(Swivel, fuel) for fuel in range(100, 3201, 100)]
-swivels_srbs = [Liquid(Swivel, fuel, [Thumper_radial, Thumper_radial]) for fuel in range(100, 3201, 100)]
+swivels_srbs = [Liquid(Swivel, fuel, [Thumper_radial] * n) for n in [2, 3, 4] for fuel in range(100, 3201, 100)]
 
 radial_srbs = [ThumperR * 2]
 
@@ -344,6 +344,7 @@ if args.filter:
 else:
     filtered_rockets = rockets
 
+print(" Cost Delta-V TWR")
 for r in filtered_rockets:
     print("%5d %6.1f %4.2f" % (r.cost, r.delta_v, r.twr_launch), 
           ["%10s, %7.2f, %7.2f" % (s.propulsion.name, s.delta_v, s.ve) for s in r.stages])
