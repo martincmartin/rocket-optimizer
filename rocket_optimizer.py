@@ -275,20 +275,26 @@ class Rocket:
         self.cost = sum([s.cost for s in self.stages])
         self.delta_v = sum([s.delta_v for s in self.stages])
 
-# Up to two stages, all SRBs:
-#rockets = \
-#    [Rocket([first]) for first in srbs] + \
-#    [Rocket([second, first]) for second in srbs for first in srbs] + \
-#    [Rocket([third, second, first]) for third in srbs for second in srbs for first in srbs]
+
+if args.steerable1st:
+    srbs1st = []
+else:
+    srbs1st = srbs
+
+    # Up to two stages, all SRBs:
+#    rockets = \
+#              [Rocket([first]) for first in srbs] + \
+#              [Rocket([second, first]) for second in srbs for first in srbs] + \
+#              [Rocket([third, second, first]) for third in srbs for second in srbs for first in srbs]
 
 Thumper_radial = Thumper + AerodynamicNoseCone
 ThumperR = Thumper_radial + RadialDecoupler
 
 terriers = [Liquid(Terrier, fuel) for fuel in range(100, 3201, 100)]
 swivels = [Liquid(Swivel, fuel) for fuel in range(100, 3201, 100)]
-swivels_srbs = [Liquid(Swivel, fuel, [Thumper_radial] * n) for n in [2, 3, 4] for fuel in range(100, 3201, 100)]
+swivels_srbs = [Liquid(Swivel, fuel, [Thumper_radial] * n) for n in [2, 3] for fuel in range(100, 3201, 100)]
 
-radial_srbs = [ThumperR * 2]
+radial_srbs = [ThumperR * 2, ThumperR * 3]
 
 #terriers = [Liquid(Terrier, 1200)]
 #swivels = [Liquid(Swivel, 100)]
@@ -302,26 +308,31 @@ radial_srbs = [ThumperR * 2]
 # fuel is just not worth it.
 #
 # For a 0.53t payload, it starts to make sense around 6700 m/s delta
-# v (atmosphere at 500 m/s).  But who needs that much delta v??
+# v (atmosphere at 500 m/s).
 
 rockets = \
-    [Rocket([single]) for single in swivels] + \
+    [Rocket([single]) for single in swivels + srbs1st] + \
     [Rocket([second, first])
-         for second in terriers
-         for first in swivels + swivels_srbs] + \
+         for second in terriers + srbs
+         for first in swivels + swivels_srbs + srbs1st] + \
     [Rocket([third, second, first])
-         for third in terriers
-         for second in terriers + swivels
-         for first in swivels + swivels_srbs] + \
+         for third in terriers + srbs
+         for second in terriers + swivels + srbs
+         for first in swivels + swivels_srbs + srbs1st] + \
     [Rocket([third, second, first])
-         for third in terriers
-         for second in swivels
+         for third in terriers + srbs
+         for second in swivels + srbs1st
          for first in radial_srbs] + \
     [Rocket([fourth, third, second, first])
-         for fourth in terriers
-         for third in terriers
-         for second in swivels
-         for first in radial_srbs]
+         for fourth in terriers + srbs
+         for third in terriers + srbs
+         for second in swivels + srbs1st
+         for first in radial_srbs] + \
+    [Rocket([fourth, third, second, first])
+         for fourth in terriers + srbs
+         for third in terriers + srbs
+         for second in terriers + swivels + srbs
+         for first in swivels + srbs1st]
 
 # Get rid of ones that won't get off the launch pad fast enough.
 rockets = [r for r in rockets if r.twr_launch >= args.min_twr_at_launch]
