@@ -13,26 +13,42 @@ from copy import copy
 
 ACCELERATION_GRAVITY = 9.81
 
-parser = argparse.ArgumentParser(description='Help for finding the most efficient way to get delta-V!')
-parser.add_argument('payload_mass', metavar='Mass', type=float,
-                   help='Mass in tonnes of payload that these stages will deliver.')
+parser = argparse.ArgumentParser(
+    description="Help for finding the most efficient way to get delta-V!"
+)
+parser.add_argument(
+    "payload_mass",
+    metavar="Mass",
+    type=float,
+    help="Mass in tonnes of payload that these stages will deliver.",
+)
 
-parser.add_argument('--steerable1st', dest='steerable1st', action='store_true')
-parser.add_argument('--no-steerable1st', dest='steerable1st', action='store_false')
-parser.set_defaults(steerable1st=False)
+parser.add_argument("--steerable1st", dest="steerable1st", action="store_true")
+parser.add_argument("--no-steerable1st", dest="steerable1st", action="store_false")
+parser.set_defaults(steerable1st=True)
 
-parser.add_argument('--delta-v-of-atmosphere', dest='delta_v_of_atmosphere', type=float,
-                    help='All stages that start below this delta_v will use atmosphere Isp.  Other will use vaccum.', default=1500)
+parser.add_argument(
+    "--delta-v-of-atmosphere",
+    dest="delta_v_of_atmosphere",
+    type=float,
+    help="All stages that start below this delta_v will use atmosphere Isp.  Other will use vaccum.",
+    default=1500,
+)
 
-parser.add_argument('--filter', dest='filter', action='store_true')
-parser.add_argument('--no-filter', dest='filter', action='store_false')
+parser.add_argument("--filter", dest="filter", action="store_true")
+parser.add_argument("--no-filter", dest="filter", action="store_false")
 parser.set_defaults(filter=True)
 
-parser.add_argument('--min-twr', dest='min_twr_at_launch', type=float,
-                    help='Minimum Thrust To Weight Ratio, i.e. acceleration as a multiple of g, at launch.',
-                    default=1.2)
+parser.add_argument(
+    "--min-twr",
+    dest="min_twr_at_launch",
+    type=float,
+    help="Minimum Thrust To Weight Ratio, i.e. acceleration as a multiple of g, at launch.",
+    default=1.2,
+)
 
 args = parser.parse_args()
+
 
 class Radius(Enum):
     tiny = 1
@@ -41,9 +57,11 @@ class Radius(Enum):
     extra_large = 4
     radial = 5
 
+
 class Direction(Enum):
     stack = 1
     radial = 2
+
 
 class Part:
     def __init__(self, name, radius, cost, mass):
@@ -51,20 +69,23 @@ class Part:
         self.radius = radius
         self.cost = cost
         self.mass = mass
+
     def __radd__(self, other):
         c = copy(other)
         iadd(c, self)
         return c
 
+
 # Also for separators
 class Decoupler(Part):
     pass
+
 
 def iadd(self, other):
     self.cost += other.cost
     self.full_name += " w/ " + other.name
 
-    if hasattr(self, 'mass'):
+    if hasattr(self, "mass"):
         self.mass += other.mass
     else:
         self.full_mass += other.mass
@@ -72,14 +93,16 @@ def iadd(self, other):
 
     if isinstance(other, Decoupler):
         dir = Direction.radial if other.radius == Radius.radial else Direction.stack
-        assert not hasattr(self, 'decouple_direction') or self.decouple_direction == dir
+        assert not hasattr(self, "decouple_direction") or self.decouple_direction == dir
         self.decouple_direction = dir
 
-SmallStackDecoupler = Decoupler("Small Stack Decoupler", Radius.small, 400, 0.05)
+
+SmallStackDecoupler = Decoupler("TD-12 Stack Decoupler", Radius.small, 400, 0.04)
 RadialDecoupler = Decoupler("TT-38K Radial Decoupler", Radius.radial, 600, 0.025)
 # Unfortunatley, the game has a part called "Small Nose Cone," whose
 # radius is tiny, while the "Aerodynamic Nose Cone"'s radius is small
 AerodynamicNoseCone = Part("Aerodynamic Nose Cone", Radius.small, 240, 0.03)
+
 
 class SRB:
     def __init__(self, name, cost, full_mass, empty_mass, thrust_atm, isp_atm, isp_vac):
@@ -99,7 +122,7 @@ class SRB:
 
     def __mul__(self, multiplier):
         c = copy(self)
-        c.name += 'x' + str(multiplier)
+        c.name += "x" + str(multiplier)
         c.cost *= multiplier
         c.full_mass *= multiplier
         c.empty_mass *= multiplier
@@ -107,18 +130,25 @@ class SRB:
         # Don't need to modify ve_atm, ve_vac or decouple_direction
         return c
 
-Flea = SRB('Flea', 200, 1.5, 0.45, 162.91, 140, 165)
-Hammer = SRB('Hammer', 400, 3.56, 0.75, 197.90, 170, 195)
-Thumper = SRB('Thumper', 850, 7.65, 1.5, 250.0, 175, 210)
-Kickback = SRB('Kickback', 2700, 24, 4.5, 593.86, 195, 220)
+
+Flea = SRB("Flea", 200, 1.5, 0.45, 162.91, 140, 165)
+Hammer = SRB("Hammer", 400, 3.5625, 0.7525, 197.90, 170, 195)
+Thumper = SRB("Thumper", 850, 7.65, 1.5, 250.0, 175, 210)
+Kickback = SRB("Kickback", 2700, 24, 4.5, 593.86, 195, 220)
 
 FleaS = Flea + SmallStackDecoupler
 HammerS = Hammer + SmallStackDecoupler
 ThumperS = Thumper + SmallStackDecoupler
 KickbackS = Kickback + SmallStackDecoupler
-Thumperx3S = Thumper * 3 + AerodynamicNoseCone + AerodynamicNoseCone + SmallStackDecoupler
+Thumperx3S = (
+    Thumper * 3 + AerodynamicNoseCone + AerodynamicNoseCone + SmallStackDecoupler
+)
+Kickbackx3S = (
+    Kickback * 3 + AerodynamicNoseCone + AerodynamicNoseCone + SmallStackDecoupler
+)
 
-srbs = [FleaS, HammerS, ThumperS, KickbackS, Thumperx3S]
+srbs = [FleaS, HammerS, ThumperS, KickbackS, Thumperx3S, Kickbackx3S]
+
 
 def fuel_cost(fuel, radius):
     assert radius is Radius.small or radius is Radius.large
@@ -167,6 +197,7 @@ def fuel_cost(fuel, radius):
 
     return cost
 
+
 class LiquidEngine:
     def __init__(self, name, radius, cost, mass, thrust_atm, isp_atm, isp_vac):
         self.name = name
@@ -177,17 +208,18 @@ class LiquidEngine:
         self.ve_atm = isp_atm * ACCELERATION_GRAVITY
         self.ve_vac = isp_vac * ACCELERATION_GRAVITY
 
-Terrier = LiquidEngine('Terrier', Radius.small, 390, 0.5, 14.73, 85, 345)
-Swivel = LiquidEngine('Swivel', Radius.small, 1200, 1.5, 168.75, 270, 320)
-Vector = LiquidEngine('Vector', Radius.small, 18000, 4.0, 936.5, 295, 315)
 
-Poodle = LiquidEngine('Poodle', Radius.large, 1300, 1.75, 64.29, 90, 350)
-Skipper = LiquidEngine('Skipper', Radius.large, 5300, 3.0, 568.75, 280, 320)
-Mainsail = LiquidEngine('Mainsail', Radius.large, 13000, 6.0, 1379.0, 285, 310)
+Terrier = LiquidEngine("Terrier", Radius.small, 390, 0.5, 14.78, 85, 345)
+Swivel = LiquidEngine("Swivel", Radius.small, 1200, 1.5, 167.97, 250, 320)
+Vector = LiquidEngine("Vector", Radius.small, 18000, 4.0, 936.5, 295, 315)
+
+Poodle = LiquidEngine("Poodle", Radius.large, 1300, 1.75, 64.29, 90, 350)
+Skipper = LiquidEngine("Skipper", Radius.large, 5300, 3.0, 568.75, 280, 320)
+Mainsail = LiquidEngine("Mainsail", Radius.large, 13000, 6.0, 1379.0, 285, 310)
 
 # Liquid engine plus fuel tanks, plus optional SRBs.
 class Liquid:
-    def __init__(self, engine, fuel, srbs = None):
+    def __init__(self, engine, fuel, srbs=None):
         if srbs is None:
             srbs = []
 
@@ -221,16 +253,18 @@ class Liquid:
 
         liquid_empty_mass = engine.mass + fuel / 1600.0
         self.empty_mass = liquid_empty_mass + sum([s.empty_mass for s in srbs])
-        self.full_mass = liquid_empty_mass + liquid_fuel_mass + \
-            sum([s.full_mass for s in srbs])
+        self.full_mass = (
+            liquid_empty_mass + liquid_fuel_mass + sum([s.full_mass for s in srbs])
+        )
         self.thrust_atm = engine.thrust_atm + sum([s.thrust_atm for s in srbs])
-        self.cost = engine.cost + fuel_cost(fuel, engine.radius) + \
-            sum([s.cost for s in srbs])
+        self.cost = (
+            engine.cost + fuel_cost(fuel, engine.radius) + sum([s.cost for s in srbs])
+        )
 
 
 class Stage:
     def __init__(self, rocket, propulsion, payload_mass):
-        assert hasattr(propulsion, 'decouple_direction')
+        assert hasattr(propulsion, "decouple_direction")
         self.rocket = rocket
         self.propulsion = propulsion
         self.cost = propulsion.cost
@@ -241,6 +275,7 @@ class Stage:
     def compute_delta_v(self, atm):
         self.ve = self.propulsion.ve_atm if atm else self.propulsion.ve_vac
         self.delta_v = self.ve * math.log(self.full_mass / self.empty_mass)
+
 
 class Rocket:
     # Stages ordered from highest to lowest, i.e. from closest to
@@ -290,15 +325,26 @@ else:
 Thumper_radial = Thumper + AerodynamicNoseCone
 ThumperR = Thumper_radial + RadialDecoupler
 
+Kickback_radial = Kickback + AerodynamicNoseCone
+KickbackR = Kickback_radial + RadialDecoupler
+
 terriers = [Liquid(Terrier, fuel) for fuel in range(100, 3201, 100)]
 swivels = [Liquid(Swivel, fuel) for fuel in range(100, 3201, 100)]
-swivels_srbs = [Liquid(Swivel, fuel, [Thumper_radial] * n) for n in [2, 3] for fuel in range(100, 3201, 100)]
+swivels_srbs = [
+    Liquid(Swivel, fuel, [Thumper_radial] * n)
+    for n in [2, 3]
+    for fuel in range(100, 3201, 100)
+] + [
+    Liquid(Swivel, fuel, [Kickback_radial] * n)
+    for n in [2, 3]
+    for fuel in range(100, 3201, 100)
+]
 
-radial_srbs = [ThumperR * 2, ThumperR * 3]
+radial_srbs = [ThumperR * 2, ThumperR * 3, KickbackR * 2, KickbackR * 3]
 
-#terriers = [Liquid(Terrier, 1200)]
-#swivels = [Liquid(Swivel, 100)]
-#swivels_srbs = [Liquid(Swivel, 1600, [Thumper_radial, Thumper_radial])]
+# terriers = [Liquid(Terrier, 1200)]
+# swivels = [Liquid(Swivel, 100)]
+# swivels_srbs = [Liquid(Swivel, 1600, [Thumper_radial, Thumper_radial])]
 
 # Swivel is never chosen for the middle of three stages.
 #
@@ -310,29 +356,40 @@ radial_srbs = [ThumperR * 2, ThumperR * 3]
 # For a 0.53t payload, it starts to make sense around 6700 m/s delta
 # v (atmosphere at 500 m/s).
 
-rockets = \
-    [Rocket([single]) for single in swivels + srbs1st] + \
-    [Rocket([second, first])
-         for second in terriers + srbs
-         for first in swivels + swivels_srbs + srbs1st] + \
-    [Rocket([third, second, first])
-         for third in terriers + srbs
-         for second in terriers + swivels + srbs
-         for first in swivels + swivels_srbs + srbs1st] + \
-    [Rocket([third, second, first])
-         for third in terriers + srbs
-         for second in swivels + srbs1st
-         for first in radial_srbs] + \
-    [Rocket([fourth, third, second, first])
-         for fourth in terriers + srbs
-         for third in terriers + srbs
-         for second in swivels + srbs1st
-         for first in radial_srbs] + \
-    [Rocket([fourth, third, second, first])
-         for fourth in terriers + srbs
-         for third in terriers + srbs
-         for second in terriers + swivels + srbs
-         for first in swivels + srbs1st]
+rockets = (
+    [Rocket([single]) for single in swivels + srbs1st]
+    + [
+        Rocket([second, first])
+        for second in terriers + srbs
+        for first in swivels + swivels_srbs + srbs1st
+    ]
+    + [
+        Rocket([third, second, first])
+        for third in terriers + srbs
+        for second in terriers + swivels + srbs
+        for first in swivels + swivels_srbs + srbs1st
+    ]
+    + [
+        Rocket([third, second, first])
+        for third in terriers + srbs
+        for second in swivels + srbs1st
+        for first in radial_srbs
+    ]
+    + [
+        Rocket([fourth, third, second, first])
+        for fourth in terriers + srbs
+        for third in terriers + srbs
+        for second in swivels + srbs1st
+        for first in radial_srbs
+    ]
+    + [
+        Rocket([fourth, third, second, first])
+        for fourth in terriers + srbs
+        for third in terriers + srbs
+        for second in terriers + swivels + srbs
+        for first in swivels + srbs1st
+    ]
+)
 
 # Get rid of ones that won't get off the launch pad fast enough.
 rockets = [r for r in rockets if r.twr_launch >= args.min_twr_at_launch]
@@ -340,8 +397,8 @@ rockets = [r for r in rockets if r.twr_launch >= args.min_twr_at_launch]
 # Could add this just to eliminate silly ones.
 # rockets = [r for r in rockets if r.stages[-1].delta_v >= args.min_delta_v_of_first_stage]
 
-rockets.sort(key=lambda r : r.delta_v, reverse=True)
-rockets.sort(key=lambda r : r.cost)
+rockets.sort(key=lambda r: r.delta_v, reverse=True)
+rockets.sort(key=lambda r: r.cost)
 
 # Keep only the dominating ones, i.e. eliminate ones that cost the same or more, but have lower delta-v.
 
@@ -357,5 +414,8 @@ else:
 
 print(" Cost Delta-V TWR")
 for r in filtered_rockets:
-    print("%5d %6.1f %4.2f" % (r.cost, r.delta_v, r.twr_launch), 
-          ["%10s, %7.2f, %7.2f" % (s.propulsion.name, s.delta_v, s.ve) for s in r.stages])
+    print(
+        "%5d %6.1f %4.2f %4.2f "
+        % (r.cost, r.delta_v, r.twr_launch, r.stages[-1].full_mass),
+        ["%10s, %7.2f, %7.2f" % (s.propulsion.name, s.delta_v, s.ve) for s in r.stages],
+    )
