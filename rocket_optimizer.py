@@ -23,8 +23,13 @@ parser.add_argument(
     help="Mass in tonnes of payload that these stages will deliver.",
 )
 
-parser.add_argument("--steerable1st", dest="steerable1st", action="store_true")
-parser.add_argument("--no-steerable1st", dest="steerable1st", action="store_false")
+
+def add_bool(parser, name):
+    parser.add_argument("--" + name, dest=name, action="store_true")
+    parser.add_argument("--no-" + name, dest=name, action="store_false")
+
+
+add_bool(parser, "steerable1st")
 parser.set_defaults(steerable1st=True)
 
 parser.add_argument(
@@ -35,8 +40,7 @@ parser.add_argument(
     default=1500,
 )
 
-parser.add_argument("--filter", dest="filter", action="store_true")
-parser.add_argument("--no-filter", dest="filter", action="store_false")
+add_bool(parser, "filter")
 parser.set_defaults(filter=True)
 
 parser.add_argument(
@@ -46,6 +50,9 @@ parser.add_argument(
     help="Minimum Thrust To Weight Ratio, i.e. acceleration as a multiple of g, at launch.",
     default=1.2,
 )
+
+add_bool(parser, "large")
+parser.set_defaults(large=False)
 
 args = parser.parse_args()
 
@@ -66,7 +73,8 @@ class Direction(Enum):
 class Part:
     def __init__(self, name, radius, cost, mass):
         self.name = name
-        self.radius = radius
+        self.top_radius = radius
+        self.bottom_radius = radius
         self.cost = cost
         self.mass = mass
 
@@ -92,7 +100,7 @@ def iadd(self, other):
         self.empty_mass += other.mass
 
     if isinstance(other, Decoupler):
-        dir = Direction.radial if other.radius == Radius.radial else Direction.stack
+        dir = Direction.radial if other.top_radius == Radius.radial else Direction.stack
         assert not hasattr(self, "decouple_direction") or self.decouple_direction == dir
         self.decouple_direction = dir
 
@@ -342,6 +350,13 @@ swivels_srbs = [
 
 radial_srbs = [ThumperR * 2, ThumperR * 3, KickbackR * 2, KickbackR * 3]
 
+skippers = [Liquid(Skipper, fuel) for fuel in range(800, 6401, 800)]
+
+
+# Rockomax brand adapter:
+# Cost: 500
+# Mass: 0.1t
+
 # terriers = [Liquid(Terrier, 1200)]
 # swivels = [Liquid(Swivel, 100)]
 # swivels_srbs = [Liquid(Swivel, 1600, [Thumper_radial, Thumper_radial])]
@@ -356,40 +371,46 @@ radial_srbs = [ThumperR * 2, ThumperR * 3, KickbackR * 2, KickbackR * 3]
 # For a 0.53t payload, it starts to make sense around 6700 m/s delta
 # v (atmosphere at 500 m/s).
 
-rockets = (
-    [Rocket([single]) for single in swivels + srbs1st]
-    + [
-        Rocket([second, first])
-        for second in terriers + srbs
-        for first in swivels + swivels_srbs + srbs1st
+if not args.large:
+    rockets = (
+        [Rocket([single]) for single in swivels + srbs1st]
+        + [
+            Rocket([second, first])
+            for second in terriers + srbs
+            for first in swivels + swivels_srbs + srbs1st
+        ]
+        + [
+            Rocket([third, second, first])
+            for third in terriers + srbs
+            for second in terriers + swivels + srbs
+            for first in swivels + swivels_srbs + srbs1st
+        ]
+        + [
+            Rocket([third, second, first])
+            for third in terriers + srbs
+            for second in swivels + srbs1st
+            for first in radial_srbs
+        ]
+        + [
+            Rocket([fourth, third, second, first])
+            for fourth in terriers + srbs
+            for third in terriers + srbs
+            for second in swivels + srbs1st
+            for first in radial_srbs
+        ]
+        + [
+            Rocket([fourth, third, second, first])
+            for fourth in terriers + srbs
+            for third in terriers + srbs
+            for second in terriers + swivels + srbs
+            for first in swivels + srbs1st
+        ]
+    )
+else:
+    rockets = [Rocket([single]) for single in skippers + srbs1st] + [
+        Rocket([second, first]) for second in skippers + srbs for first in skippers
     ]
-    + [
-        Rocket([third, second, first])
-        for third in terriers + srbs
-        for second in terriers + swivels + srbs
-        for first in swivels + swivels_srbs + srbs1st
-    ]
-    + [
-        Rocket([third, second, first])
-        for third in terriers + srbs
-        for second in swivels + srbs1st
-        for first in radial_srbs
-    ]
-    + [
-        Rocket([fourth, third, second, first])
-        for fourth in terriers + srbs
-        for third in terriers + srbs
-        for second in swivels + srbs1st
-        for first in radial_srbs
-    ]
-    + [
-        Rocket([fourth, third, second, first])
-        for fourth in terriers + srbs
-        for third in terriers + srbs
-        for second in terriers + swivels + srbs
-        for first in swivels + srbs1st
-    ]
-)
+
 
 # Get rid of ones that won't get off the launch pad fast enough.
 rockets = [r for r in rockets if r.twr_launch >= args.min_twr_at_launch]
@@ -415,7 +436,6 @@ else:
 print(" Cost Delta-V TWR")
 for r in filtered_rockets:
     print(
-        "%5d %6.1f %4.2f %4.2f "
-        % (r.cost, r.delta_v, r.twr_launch, r.stages[-1].full_mass),
+        "%5d %6.1f %4.2f " % (r.cost, r.delta_v, r.twr_launch),
         ["%10s, %7.2f, %7.2f" % (s.propulsion.name, s.delta_v, s.ve) for s in r.stages],
     )
